@@ -1,0 +1,1 @@
+# atlas-to-mongo-kubesync
