@@ -65,6 +65,6 @@ spec:
     app: mongodb-atlas-local
   ports:
     - protocol: TCP
-      port: 27017
+      port: 27018
       targetPort: 27017
   type: NodePort
