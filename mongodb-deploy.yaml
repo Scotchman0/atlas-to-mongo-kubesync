@@ -1,0 +1,79 @@
+---
+#initialize mongodb
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-init-script
+data:
+  init-script.js: |
+    db.createUser({
+      user: "admin",
+      pwd: "your_admin_password",
+      roles: [ { role: "userAdminAnyDatabase", db: "admin" } ]
+    });
+    db.createRole("readWriteUser", {
+      privileges: [
+        { resource: "{ databases: [ \"test\" ], actions: [ \"find\", \"update\", \"insert\", \"delete\" ] }" }
+      ],
+      roles: []
+    });
+    db.addUser("readWriteUser", "your_read_write_user_password");
+
+---
+#pvc create
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+#deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-community-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mongodb-community-server
+  template:
+    metadata:
+      labels:
+        app: mongodb-community-server
+    spec:
+      containers:
+      - name: mongodb-community-server
+        image: quay.io/mongodb/mongodb-community-server
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+        - name: mongodb-data
+          mountPath: /data/db
+        - name: mongodb-config
+          mountPath: /opt/mongo-init
+      volumes:
+      - name: mongodb-data
+        persistentVolumeClaim:
+          claimName: mongodb-pvc
+      - name: mongodb-config
+        configMap:
+          name: mongodb-init-script
+---
+#service creation
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    app: mongodb-community-server
+  ports:
+  - port: 27017
+    targetPort: 27017
+  type: ClusterIP
