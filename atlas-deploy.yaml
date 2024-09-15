@@ -1,0 +1,67 @@
+---
+#deploy secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret
+type: Opaque
+stringData:
+  MONGO_INITDB_ROOT_USERNAME: "your_username"
+  MONGO_INITDB_ROOT_PASSWORD: "your_password"
+
+---
+#create PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+#deploy atlas
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-atlas-local
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb-atlas-local
+  template:
+    metadata:
+      labels:
+        app: mongodb-atlas-local
+    spec:
+      containers:
+      - name: mongodb-atlas-local
+        image: quay.io/mongodb/mongodb-atlas-local:latest
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+        - name: mongodb-data
+          mountPath: /data/db
+      volumes:
+      - name: mongodb-data
+        persistentVolumeClaim:
+          claimName: mongodb-pvc
+
+---
+#create service of type nodeport (port undefined for auto-selection)
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-atlas-local-service
+spec:
+  selector:
+    app: mongodb-atlas-local
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+  type: NodePort
